@@ -52,7 +52,9 @@ def analyze_data():
             message = "ALERT {} {} {}".format(variable, min_value, max_value)
             topic = '{}/{}/{}/{}/in'.format(country, state, city, user)
             print(datetime.now(), "Sending alert to {} {}".format(topic, variable))
-            client.publish(topic, message)
+            result = client.publish(topic, message)
+            result.wait_for_publish()
+            print('mensaje publicado')
             alerts += 1
 
     print(len(aggregation), "dispositivos revisados")
