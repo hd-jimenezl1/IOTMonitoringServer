@@ -13,21 +13,18 @@ client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, client_id=settings.MQTT_U
 def detect_limits():
     data = Data.objects.filter(
         base_time__gte=datetime.now() - timedelta(hours=1))
-    aggregation = data.annotate(check_value=Avg('avg_value')) \
-        .select_related('station', 'measurement') \
+    aggregation = data.select_related('station', 'measurement') \
         .select_related('station__user', 'station__location') \
         .select_related('station__location__city', 'station__location__state',
                         'station__location__country') \
-        .values('check_value', 'station__user__username',
+        .values('values', 'station__user__username',
                 'measurement__name',
                 'measurement__max_value',
                 'measurement__min_value',
                 'station__location__city__name',
                 'station__location__state__name',
                 'station__location__country__name')
-    alerts = 0
     for item in aggregation:
-        alert = False
 
         variable = item["measurement__name"]
         max_value = item["measurement__max_value"] or 0
@@ -38,20 +35,29 @@ def detect_limits():
         city = item['station__location__city__name']
         user = item['station__user__username']
         value = ""
+        measure_values = item['values']
+        last_ten_values = measure_values[-10:]
+        last_ten_average = -1
 
-        if item["check_value"] > max_value:
-            value = "UPPER"
-        elif item["check_value"] < min_value:
-            value = "LOWER"
+        if last_ten_values:
+            last_ten_average = sum(last_ten_values) / len(last_ten_values)        
+
+        if last_ten_average > -1:
+            if last_ten_average > max_value:
+                value = "UPPER"
+            elif last_ten_average < min_value:
+                value = "LOWER"
+            else:
+                value = "BASE"
+            
+            message = "LIMIT_DETECTED {} {}".format(variable, value)
+            topic = '{}/{}/{}/{}/limit'.format(country, state, city, user)
+            print(datetime.now(), "Sending limit to {} {}".format(topic, variable))
+            result = client.publish(topic, message)
+            result.wait_for_publish()
+            print('limit published')
         else:
-            value = "BASE"
-        
-        message = "LIMIT_DETECTED {} {}".format(variable, value)
-        topic = '{}/{}/{}/{}/limit'.format(country, state, city, user)
-        print(datetime.now(), "Sending limit to {} {}".format(topic, variable))
-        result = client.publish(topic, message)
-        result.wait_for_publish()
-        print('limit published')            
+            print('Not enough values to calculate last ten average')
     
 
 def analyze_data():
