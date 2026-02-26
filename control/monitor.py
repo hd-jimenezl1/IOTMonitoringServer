@@ -27,6 +27,10 @@ def detect_limits():
     for item in aggregation:
 
         variable = item["measurement__name"]
+
+        if variable != "temperatura":
+            continue
+
         max_value = item["measurement__max_value"] or 0
         min_value = item["measurement__min_value"] or 0
 
