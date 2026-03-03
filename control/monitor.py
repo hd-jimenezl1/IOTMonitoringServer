@@ -160,8 +160,8 @@ def start_cron():
     Inicia el cron que se encarga de ejecutar la función analyze_data cada 5 minutos.
     '''
     print("Iniciando cron...")
-    schedule.every(10).seconds.do(analyze_data)
-    schedule.every(10).seconds.do(detect_limits)
+    schedule.every(10).minutes.do(analyze_data)
+#   schedule.every(10).seconds.do(detect_limits)
     print("Servicio de control iniciado")
     while 1:
         schedule.run_pending()
